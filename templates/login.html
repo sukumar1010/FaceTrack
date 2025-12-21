@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Login & Attendance</title>
+
+<style>
+body {
+    font-family: "Segoe UI", sans-serif;
+    background: #f1f5f9;
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Layout */
+.wrapper {
+    display: flex;
+    width: 900px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+/* LEFT: Login */
+.left {
+    flex: 1;
+    padding: 40px;
+}
+
+.left h2 {
+    margin-bottom: 20px;
+}
+
+.left input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+.left button {
+    width: 100%;
+    padding: 12px;
+    background: #2563eb;
+    border: none;
+    color: white;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+/* RIGHT: Attendance */
+.right {
+    flex: 1;
+    background: #0f172a;
+    color: white;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+#attendanceBtn {
+    padding: 14px 24px;
+    font-size: 16px;
+    background: #22c55e;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+#adminLoginPageBtn{
+    padding: 14px 24px;
+    font-size: 16px;
+    background: #22c55e;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+#cameraBox {
+    display: none;
+    margin-top: 20px;
+    text-align: center;
+}
+
+video {
+    width: 260px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="wrapper">
+
+    <!-- LEFT SIDE: LOGIN -->
+    <div class="left">
+        <h2>User Login</h2>
+
+        <form id="loginForm">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">Login</button>
+        </form>
+    </div>
+
+    <!-- RIGHT SIDE: ATTENDANCE -->
+    <div class="right">
+        <h2>Face Attendance</h2>
+        <p>Available only between <b>9:00 AM – 10:00 AM</b></p>
+
+        <button id="attendanceBtn">Take Attendance</button>
+
+        <div id="cameraBox">
+            <video id="video" autoplay></video><br>
+            <button onclick="captureAttendance()">Capture</button>
+            <button onclick="closeCamera()">Cancel</button>
+        </div>
+        <br>
+
+        <button id="adminLoginPageBtn">Admin Login</button>
+    </div>
+
+</div>
+<input type="hidden" id="csrfToken" value="{{ csrf_token }}">
+
+<script>
+/* ---------- LOGIN ---------- */
+document.getElementById("loginForm").addEventListener("submit", async e => {
+    e.preventDefault();
+
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+
+    const res = await fetch("login", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": data.csrfmiddlewaretoken
+        },
+        body: JSON.stringify(data)
+    });
+
+    const result = await res.json();
+    
+    
+
+
+    if (res.ok) {
+        if (result.password_change_required) {
+            window.location.href = "update-password";
+            return;
+            
+        }
+         
+        localStorage.setItem("access_token", result.tokens.access);
+        localStorage.setItem("refresh_token", result.tokens.refresh);
+        window.location.href = "home";
+    } else {
+        alert("Login failed");
+    }
+});
+
+/* ---------- ATTENDANCE ---------- */
+let stream;
+
+function isAttendanceTime() {
+    const h = new Date().getHours();
+    return h >= 7 && h < 2;
+}
+
+document.getElementById("attendanceBtn").onclick = () => {
+    
+
+    document.getElementById("cameraBox").style.display = "block";
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(s => {
+            stream = s;
+            document.getElementById("video").srcObject = s;
+        });
+};
+
+function closeCamera() {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    document.getElementById("cameraBox").style.display = "none";
+}
+
+function captureAttendance() {
+    const video = document.getElementById("video");
+
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+        alert("Camera not ready. Please try again.");
+        return;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+
+    canvas.toBlob(blob => {
+        if (!blob) {
+            alert("Failed to capture image");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("image", blob, "face.jpg");
+
+        fetch("api/attendance/mark", {   // ✅ correct URL
+            method: "POST",
+            headers: {
+                "X-CSRFToken": document.getElementById("csrfToken").value
+            },
+            body: formData
+        })
+        .then(async res => {
+            const contentType = res.headers.get("content-type");
+            const text = await res.text();
+            const data = JSON.parse(text);
+
+
+            if (!res.ok) {
+                
+                throw new Error(text);
+            }
+
+            if (!contentType || !contentType.includes("application/json")) {
+                throw new Error("Expected JSON but received HTML");
+            }
+
+            return JSON.parse(text);
+        })
+        .then(data => {
+            if(!data.status){
+                throw new Error(data.status);
+            }
+            if (data.status === "present") {
+                alert("✅ Attendance marked successfully for"+ data.email);
+            } else {
+                alert("❌ " + data.status );
+            }
+            closeCamera();
+        })
+        .catch(err => {
+            console.error("Attendance error:", err);
+            alert("Attendance failed:\n" + err.message);
+        });
+
+    }, "image/jpeg");
+}
+
+
+
+document.getElementById("adminLoginPageBtn").onclick = () => {
+    window.location.href='adminLoginPage';
+}
+</script>
+
+</body>
+</html>
+{% comment %} polishing UI
+
+writing README
+
+deploying
+
+preparing interview explanations {% endcomment %}

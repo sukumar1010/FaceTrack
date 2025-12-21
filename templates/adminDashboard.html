@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard</title>
+
+<style>
+body {
+    font-family: "Segoe UI", sans-serif;
+    background: #f1f5f9;
+    margin: 0;
+    padding: 0;
+}
+
+/* Top bar */
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 30px;
+    background: #0f172a;
+    color: white;
+}
+
+#user-info {
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.top-bar button {
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+#logoutBtn {
+    background: #ef4444;
+    color: white;
+}
+
+/* Content */
+.container {
+    padding: 40px;
+}
+
+#addUserBtn {
+    background: #2563eb;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 6px;
+    border: none;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+/* Camera modal */
+#cameraBox {
+    display: none;
+    margin-top: 30px;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 420px;
+}
+
+video {
+    width: 100%;
+    border-radius: 6px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- TOP BAR -->
+<div class="top-bar">
+    <div id="user-info">
+        Admin: {{ adminUserId }}
+    </div>
+
+    <div>
+        <button id="logoutBtn">Logout</button>
+    </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="container">
+    <button id="addUserBtn">➕ Add User</button>
+
+    <!-- Camera + Email -->
+    <div id="cameraBox">
+        <h3>Add User</h3>
+        <input type="email" id="emailInput" placeholder="Enter user email" required />
+        <br><br>
+
+        <video id="video" autoplay></video>
+        <br><br>
+
+        <button onclick="captureAndSubmit()">Capture & Save</button>
+        <button onclick="resetAddUserForm()">Cancel</button>
+
+    </div>
+</div>
+
+
+
+<script>
+function resetAddUserForm() {
+    // Clear email
+    document.getElementById("emailInput").value = "";
+
+    // Stop camera if running
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+    }
+
+    // Remove video source
+    const video = document.getElementById("video");
+    video.srcObject = null;
+
+    // Hide camera box
+    document.getElementById("cameraBox").style.display = "none";
+}
+</script>
+
+<script>
+let stream;
+
+document.getElementById("addUserBtn").onclick = () => {
+    resetAddUserForm();
+    document.getElementById("cameraBox").style.display = "block";
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(s => {
+            stream = s;
+            document.getElementById("video").srcObject = s;
+        });
+};
+
+function closeCamera() {
+    if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+    }
+    document.getElementById("cameraBox").style.display = "none";
+}
+
+function captureAndSubmit() {
+    const email = document.getElementById("emailInput").value;
+    if (!email) {
+        alert("Email is required");
+        return;
+    }
+
+    const video = document.getElementById("video");
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+
+    canvas.toBlob(blob => {
+        const formData = new FormData();
+        formData.append("email", email);
+        formData.append("image", blob, "face.jpg");
+
+        fetch("/api/admin/enroll-user", {
+    method: "POST",
+    headers: {
+        "X-CSRFToken": "{{ csrf_token }}"
+    },
+    body: formData
+})
+.then(async res => {
+    const data = await res.json();
+
+    if (res.status === 400) {
+        alert("Email already exists");
+        return;
+    }
+
+    if (res.status === 201) {
+        alert(
+            "User Created Successfully\n\n" +
+            "Email: " + data.email + "\n" +
+            "Default Password: " + data.default_password
+        );
+    }
+
+    closeCamera();
+    resetAddUserForm();
+})
+.catch(() => alert("Failed to create user, please check your loggedin"),
+            window.location.href='adminLoginPage');
+
+    }, "image/jpeg");
+}
+
+/* LOGOUT */
+document.getElementById("logoutBtn").addEventListener("click", async () => {
+    const res = await fetch("admin-logout", {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": "{{ csrf_token }}"
+        }
+    });
+
+    if (res.ok) {
+        
+        window.location.replace("{% url 'adminLoginPage' %}");
+    }
+});
+</script>
+
+</body>
+</html>

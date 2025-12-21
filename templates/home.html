@@ -1,0 +1,274 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Home</title>
+
+<style>
+    body {
+        font-family: "Segoe UI", sans-serif;
+        background: #f1f5f9;
+        margin: 0;
+        padding: 0;
+    }
+
+    /* Top bar */
+    
+     .top-bar {
+        display: none;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 30px;
+        background: #0f172a;
+        color: white;
+    }
+
+    #user-info {
+        font-weight: 500;
+        font-size: 14px;
+    }
+
+
+    .top-bar a {
+        color: white;
+        text-decoration: none;
+        font-weight: 500;
+        background: #ef4444;
+        padding: 8px 14px;
+        border-radius: 6px;
+    }
+
+    #userid {
+    color: white;
+    font-weight: 500;
+}
+
+    /* Main container */
+    .container {
+        max-width: 900px;
+        margin: 60px auto;
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    }
+
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .header h2 {
+        margin: 0;
+        color: #0f172a;
+    }
+
+    .header button {
+        background: #2563eb;
+        color: white;
+        border: none;
+        padding: 10px 18px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    .header button:hover {
+        background: #1e40af;
+    }
+
+    /* Table */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }
+
+    thead {
+        background: #e2e8f0;
+    }
+
+    th, td {
+        padding: 14px;
+        text-align: left;
+    }
+
+    th {
+        color: #334155;
+        font-weight: 600;
+    }
+
+    tr {
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    tr:hover {
+        background: #f8fafc;
+    }
+
+    .present {
+        color: #16a34a;
+        font-weight: 600;
+    }
+
+    .absent {
+        color: #dc2626;
+        font-weight: 600;
+    }
+
+    .empty-msg {
+        text-align: center;
+        padding: 20px;
+        color: #64748b;
+    }
+</style>
+</head>
+
+<body>
+
+
+<div class="top-bar">
+    <div id="user-info">
+        <!-- User ID / Email inserted by JS -->
+    </div>
+
+    <div>
+        <a href="#" onclick="logoutUser()">Logout</a>
+    </div>
+</div>
+
+
+
+
+<div class="container">
+    <div class="header">
+        <h2>Attendance Record</h2>
+    </div>
+    
+
+    <table id="attendanceTable">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="attendanceBody">
+            <!-- JS inserts rows -->
+        </tbody>
+    </table>
+</div>
+
+<script>
+function logoutUser() {
+    
+    localStorage.clear();
+    window.location.replace("{% url 'logout' %}");
+    }
+</script>
+
+<script>
+function authFetch(url, options = {}) {
+    const token = localStorage.getItem("access_token");
+
+    if (!token) {
+        redirectToLogin();
+        return;
+    }
+
+    options.headers = {
+        ...(options.headers || {}),
+        "Authorization": "Bearer " + token
+    };
+
+    return fetch(url, options).then(response => {
+        if (response.status === 401) {
+            // 🔴 Token expired or invalid
+            handleUnauthorized();
+            throw new Error("Unauthorized");
+        }
+        return response;
+    });
+}
+
+function handleUnauthorized() {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    window.location.href = "show_login";
+}
+
+function redirectToLogin() {
+    window.location.href = "show_login";
+}
+</script>
+
+
+<script>
+    const token = localStorage.getItem("access_token");
+
+    authFetch("/usercontent", {
+        headers: {
+            "Authorization": "Bearer " + token
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+
+        if (data.is_authenticated) {
+            document.getElementsByClassName("top-bar")[0].style.display = "flex";
+             document.getElementById("user-info").innerText =
+                "User: " + data.user;
+        }
+
+        const tbody = document.getElementById("attendanceBody");
+
+        if (data.attendance.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="2" class="empty-msg">
+                        No attendance records found
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        data.attendance.forEach(item => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${new Date(item.date_time).toLocaleDateString()}</td>
+                <td class="${item.is_present ? 'present' : 'absent'}">
+                    ${item.is_present ? 'Present' : 'Absent'}
+                </td>
+            `;
+            tbody.appendChild(row);
+
+        });
+    })
+    .catch(err => console.error(err));
+</script>
+
+<script>
+    // Prevent back button after logout
+    if (!localStorage.getItem("access_token")) {
+        window.location.replace("/login");
+    }
+
+    // Prevent bfcache (back-forward cache)
+    window.addEventListener("pageshow", function (event) {
+        if (event.persisted) {
+            window.location.reload();
+        }
+    });
+</script>
+
+
+
+</body>
+</html>
+
