@@ -28,4 +28,7 @@ COPY . .
 RUN python manage.py collectstatic --noinput
 
 # Start app
-CMD ["gunicorn", "facerec.wsgi:application", "--bind", "0.0.0.0:8000"]
+CMD python manage.py migrate && \
+    python manage.py collectstatic --noinput && \
+    gunicorn facerec.wsgi:application --bind 0.0.0.0:8000
+
