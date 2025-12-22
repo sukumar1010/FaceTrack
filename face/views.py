@@ -26,7 +26,7 @@ import cv2
 from django.views.decorators.cache import never_cache
 from django.http import Http404
 
-
+DeepFace.build_model('Facenet512')
 
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
