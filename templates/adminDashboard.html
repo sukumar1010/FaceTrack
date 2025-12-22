@@ -178,7 +178,7 @@ function captureAndSubmit() {
 
     if (res.status === 400) {
         alert("Email already exists");
-        return;
+        
     }
 
     if (res.status === 201) {
@@ -192,8 +192,8 @@ function captureAndSubmit() {
     closeCamera();
     resetAddUserForm();
 })
-.catch(() => alert("Failed to create user, please check your loggedin"),
-            window.location.href='adminLoginPage');
+.catch(() => alert("Failed to create user, please check your loggedin"))
+            
 
     }, "image/jpeg");
 }
