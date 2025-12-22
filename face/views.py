@@ -160,7 +160,7 @@ class MarkAttendanceAPIView(APIView):
             captured_embedding = DeepFace.represent(
                 img_path=img,
                 model_name="Facenet512",
-                detector_backend="retinaface",
+                detector_backend="opencv",
                 enforce_detection=True
             )[0]["embedding"]
         except Exception:
@@ -250,7 +250,7 @@ class AdminEnrollUserAPIView(APIView):
             embedding = DeepFace.represent(
                 img_path=img,
                 model_name="Facenet512",
-                detector_backend="retinaface",
+                detector_backend="opencv",
                 enforce_detection=True
             )[0]["embedding"]
         except Exception as e:
