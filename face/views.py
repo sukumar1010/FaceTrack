@@ -27,7 +27,7 @@ from django.views.decorators.cache import never_cache
 from django.http import Http404
 
 
-DeepFace.build_model("Facenet512")
+
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
     return {
@@ -128,15 +128,7 @@ def cosine_similarity(a, b):
 from PIL import Image
 import io
 
-def preprocess_image(uploaded_file):
-    img = Image.open(uploaded_file)
-    img = img.convert("RGB")
-    img.thumbnail((512, 512))  # keeps aspect ratio
 
-    buffer = io.BytesIO()
-    img.save(buffer, format="JPEG", quality=85)
-    buffer.seek(0)
-    return buffer
 
 class MarkAttendanceAPIView(APIView):
     permission_classes = [AllowAny]
@@ -149,12 +141,13 @@ class MarkAttendanceAPIView(APIView):
         image = serializer.validated_data["image"]
 
         # ⏰ Time restriction
-        now = timezone.localtime().time()
-        if not (time(8, 0) <= now <= time(10, 0)):
-            return Response(
-                {"status": "time_not_allowed"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        # now = timezone.localtime().time()
+        # print("_____________________________",now)
+        # if not (time(8, 0) <= now <= time(11, 0)):
+        #     return Response(
+        #         {"status": "time_not_allowed"},
+        #         status=status.HTTP_403_FORBIDDEN
+        #     )
 
         # 📸 Extract face embedding
         try:
@@ -162,7 +155,7 @@ class MarkAttendanceAPIView(APIView):
 
             file_bytes = np.asarray(bytearray(image.read()), dtype=np.uint8)
             img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-            processed_image = preprocess_image(img)
+           
             
             captured_embedding = DeepFace.represent(
                 img_path=img,
@@ -252,10 +245,10 @@ class AdminEnrollUserAPIView(APIView):
         
         file_bytes = np.asarray(bytearray(image.read()), dtype=np.uint8)
         img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-        processed_image = preprocess_image(img)
+        
         try:
             embedding = DeepFace.represent(
-                img_path=preprocess_image,
+                img_path=img,
                 model_name="Facenet512",
                 detector_backend="retinaface",
                 enforce_detection=True
