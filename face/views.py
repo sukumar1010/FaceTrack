@@ -27,7 +27,7 @@ from django.views.decorators.cache import never_cache
 from django.http import Http404
 
 
-
+DeepFace.build_model("Facenet512")
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
     return {
@@ -125,6 +125,18 @@ def cosine_similarity(a, b):
     b = np.array(b, dtype=np.float32)
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
+from PIL import Image
+import io
+
+def preprocess_image(uploaded_file):
+    img = Image.open(uploaded_file)
+    img = img.convert("RGB")
+    img.thumbnail((512, 512))  # keeps aspect ratio
+
+    buffer = io.BytesIO()
+    img.save(buffer, format="JPEG", quality=85)
+    buffer.seek(0)
+    return buffer
 
 class MarkAttendanceAPIView(APIView):
     permission_classes = [AllowAny]
@@ -150,7 +162,8 @@ class MarkAttendanceAPIView(APIView):
 
             file_bytes = np.asarray(bytearray(image.read()), dtype=np.uint8)
             img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-
+            processed_image = preprocess_image(img)
+            
             captured_embedding = DeepFace.represent(
                 img_path=img,
                 model_name="Facenet512",
@@ -159,7 +172,7 @@ class MarkAttendanceAPIView(APIView):
             )[0]["embedding"]
         except Exception:
             return Response(
-                {"status": "no_face_detected"},
+                {"message": "no_face_detected"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -239,13 +252,19 @@ class AdminEnrollUserAPIView(APIView):
         
         file_bytes = np.asarray(bytearray(image.read()), dtype=np.uint8)
         img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-
-        embedding = DeepFace.represent(
-            img_path=img,
-            model_name="Facenet512",
-            detector_backend="retinaface",
-            enforce_detection=True
-        )[0]["embedding"]
+        processed_image = preprocess_image(img)
+        try:
+            embedding = DeepFace.represent(
+                img_path=preprocess_image,
+                model_name="Facenet512",
+                detector_backend="retinaface",
+                enforce_detection=True
+            )[0]["embedding"]
+        except Exception as e:
+            return Response(
+                {"message": "Face processing failed"},
+                status=400
+            )
         # 3️⃣ Store / update face profile
         
         FaceProfile.objects.update_or_create(
