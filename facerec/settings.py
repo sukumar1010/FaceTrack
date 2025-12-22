@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 from pathlib import Path
 import os
 import dj_database_url
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -89,6 +91,7 @@ DEBUG = os.environ.get("DEBUG") == "True"
 #         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
+
 
 DATABASES = {
     "default": dj_database_url.config(
@@ -169,3 +172,11 @@ REST_FRAMEWORK = {
 
 DEFAULT_USER_PASSWORD = "ChangeMe@123"
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://facetrack-production.up.railway.app",
+]
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SAMESITE = "Lax"
