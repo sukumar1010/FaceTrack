@@ -126,7 +126,7 @@ body {
             });
 
             try {
-                const response = await fetch("http://127.0.0.1:8000/api/adminLogin", {
+                const response = await fetch("api/adminLogin", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
@@ -146,7 +146,7 @@ body {
                 }
             } catch (err) {
                 console.error(err);
-                alert("You are not an Admin");
+                alert("Login Failed, Try again");
             }
         });
     </script>

@@ -116,7 +116,7 @@ video {
     <!-- RIGHT SIDE: ATTENDANCE -->
     <div class="right">
         <h2>Face Attendance</h2>
-        <p>Available only between <b>9:00 AM – 10:00 AM</b></p>
+        <p>Available only between<b>8:00AM – 10:00AM</b></p>
 
         <button id="attendanceBtn">Take Attendance</button>
 
@@ -175,11 +175,14 @@ let stream;
 
 function isAttendanceTime() {
     const h = new Date().getHours();
-    return h >= 7 && h < 2;
+    return h >= 8 && h < 10;
 }
 
 document.getElementById("attendanceBtn").onclick = () => {
-    
+    if(!isAttendanceTime()){
+        alert('Available only between 8:00 AM – 10:00 AM');
+        return;
+    }
 
     document.getElementById("cameraBox").style.display = "block";
 

@@ -138,7 +138,7 @@ class MarkAttendanceAPIView(APIView):
 
         # ⏰ Time restriction
         now = timezone.localtime().time()
-        if not (time(7, 0) <= now <= time(23, 0)):
+        if not (time(8, 0) <= now <= time(10, 0)):
             return Response(
                 {"status": "time_not_allowed"},
                 status=status.HTTP_403_FORBIDDEN
@@ -170,7 +170,7 @@ class MarkAttendanceAPIView(APIView):
         # 🔍 Compare against all stored faces
         for profile in FaceProfile.objects.select_related("user"):
             score = cosine_similarity(profile.embedding, captured_embedding)
-            print("Similarity:", score, "User:", profile.user.email)
+            # print("Similarity:", score, "User:", profile.user.email)
 
             if score > best_score:
                 best_score = score
